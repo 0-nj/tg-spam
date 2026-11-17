@@ -473,7 +473,7 @@ All reports are stored in the database for audit purposes and can help identify 
 
 With `--captcha.enabled` every new member of the primary group gets a multiple-choice question with one button per answer, and stays muted until they answer. The question goes to the member's private chat when the bot can write there; otherwise it is posted in the group, where only that member's presses count (others get the `--captcha.not-yours` popup). The question is removed after the answer or after `--captcha.timeout` (default 3m).
 
-- correct answer: the mute is lifted (the group's default rights apply)
+- correct answer: the mute is lifted (the group's default rights apply), or with `--captcha.pass-mute` (e.g. `15m`) the member stays muted that long and Telegram lifts it by itself
 - wrong answer or no answer: `--captcha.fail-action` — `kick` (removed, may join again), `ban` or `mute` (stays muted)
 - groups with "approve new members" turned on: the bot answers the join request in the user's private chat (Telegram lets a bot write to anyone who asked to join) and approves or declines the request; if that message can't be delivered the request is approved and the question is asked in the group
 - superusers, approved users and bots are never asked; the mute set on join ends by itself one minute after the timeout, so a bot restart never leaves anyone muted
@@ -836,6 +836,7 @@ captcha:
       --captcha.answer=                 number of the correct answer, starting at 1 (default: 1) [$CAPTCHA_ANSWER]
       --captcha.timeout=                time to answer (default: 3m) [$CAPTCHA_TIMEOUT]
       --captcha.fail-action=[kick|ban|mute] action on a wrong answer or no answer (default: kick) [$CAPTCHA_FAIL_ACTION]
+      --captcha.pass-mute=              keep members muted this long after a correct answer, 0 lifts the mute at once (default: 0s) [$CAPTCHA_PASS_MUTE]
       --captcha.shuffle                 show the answers in random order [$CAPTCHA_SHUFFLE]
       --captcha.intro=                  text above the question, supports {name}, {group}, {seconds}, {minutes} (default: Welcome {name}! Answer within {seconds} seconds to write in {group}.) [$CAPTCHA_INTRO]
       --captcha.pass-msg=               text after a correct answer (default: Correct, welcome!) [$CAPTCHA_PASS_MSG]

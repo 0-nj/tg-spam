@@ -152,6 +152,7 @@ func optToSettings(opts options) *config.Settings {
 			Answer:     opts.Captcha.Answer,
 			Timeout:    opts.Captcha.Timeout,
 			FailAction: opts.Captcha.FailAction,
+			PassMute:   opts.Captcha.PassMute,
 			Shuffle:    opts.Captcha.Shuffle,
 			Intro:      opts.Captcha.Intro,
 			PassMsg:    opts.Captcha.PassMsg,

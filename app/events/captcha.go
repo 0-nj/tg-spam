@@ -34,6 +34,7 @@ type CaptchaConfig struct {
 	Answer     int           // 1-based number of the correct option
 	Timeout    time.Duration // time to answer
 	FailAction string        // kick, ban or mute on a wrong answer or no answer
+	PassMute   time.Duration // keep a member who answered correctly muted this long, 0 lifts the mute at once
 	Shuffle    bool          // show the options in random order
 	Intro      string        // text above the question, supports {name}, {group}, {seconds} and {minutes}
 	PassMsg    string        // text shown after a correct answer
@@ -59,6 +60,7 @@ type captchaChallenge struct {
 	failAction  string
 	failMsg     string
 	passMsg     string
+	passMute    time.Duration
 	timer       *time.Timer
 }
 
@@ -146,7 +148,14 @@ func (c *captcha) OnNewMember(member *tbapi.User) {
 	passedAt, passed := c.passed[member.ID]
 	delete(c.passed, member.ID)
 	c.mu.Unlock()
-	if busy || (passed && time.Since(passedAt) < passedTTL) || c.skip(member.UserName, member.ID) {
+	if busy || c.skip(member.UserName, member.ID) {
+		return
+	}
+	if passed && time.Since(passedAt) < passedTTL {
+		// answered in DM before joining: the after-answer mute starts now
+		if cfg.PassMute > 0 {
+			c.mutePassed(member.ID, cfg.PassMute)
+		}
 		return
 	}
 
@@ -258,7 +267,22 @@ func (c *captcha) pass(ch *captchaChallenge) {
 		c.approve(ch.userID)
 		return
 	}
+	if ch.passMute > 0 {
+		c.mutePassed(ch.userID, ch.passMute)
+		return
+	}
 	c.unrestrict(ch.userID)
+}
+
+// mutePassed keeps a member who answered correctly muted for d; Telegram lifts the mute by itself
+// at the end, so it ends on time even across bot restarts
+func (c *captcha) mutePassed(userID int64, d time.Duration) {
+	if err := c.restrict(userID, time.Now().Add(d)); err != nil {
+		log.Printf("[WARN] captcha: can't mute %d after the answer, lifting the mute: %v", userID, err)
+		c.unrestrict(userID)
+		return
+	}
+	log.Printf("[INFO] captcha: %d muted for %v after a correct answer", userID, d)
 }
 
 func (c *captcha) fail(ch *captchaChallenge, why string) {
@@ -327,7 +351,7 @@ func (c *captcha) newChallenge(cfg CaptchaConfig, u *tbapi.User) *captchaChallen
 	seq := c.seq
 	c.mu.Unlock()
 	return &captchaChallenge{userID: u.ID, name: name, seq: seq, correct: cfg.Answer - 1,
-		failAction: cfg.FailAction, failMsg: cfg.FailMsg, passMsg: cfg.PassMsg}
+		failAction: cfg.FailAction, failMsg: cfg.FailMsg, passMsg: cfg.PassMsg, passMute: cfg.PassMute}
 }
 
 func (c *captcha) track(ch *captchaChallenge, timeout time.Duration) {

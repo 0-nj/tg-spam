@@ -224,6 +224,7 @@ type CaptchaSettings struct {
 	Answer     int           `json:"answer" yaml:"answer" db:"captcha_answer"`
 	Timeout    time.Duration `json:"timeout" yaml:"timeout" db:"captcha_timeout"`
 	FailAction string        `json:"fail_action" yaml:"fail_action" db:"captcha_fail_action"`
+	PassMute   time.Duration `json:"pass_mute" yaml:"pass_mute" db:"captcha_pass_mute"`
 	Shuffle    bool          `json:"shuffle" yaml:"shuffle" db:"captcha_shuffle"`
 	Intro      string        `json:"intro" yaml:"intro" db:"captcha_intro"`
 	PassMsg    string        `json:"pass_msg" yaml:"pass_msg" db:"captcha_pass_msg"`
@@ -569,6 +570,9 @@ func (c CaptchaSettings) validate() error {
 	}
 	if c.Timeout < 30*time.Second || c.Timeout > time.Hour {
 		return fmt.Errorf("captcha.timeout (%v) must be between 30s and 1h", c.Timeout)
+	}
+	if c.PassMute != 0 && (c.PassMute < time.Minute || c.PassMute > 24*time.Hour) {
+		return fmt.Errorf("captcha.pass-mute (%v) must be 0 or between 1m and 24h", c.PassMute)
 	}
 	switch c.FailAction {
 	case "kick", "ban", "mute":

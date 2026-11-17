@@ -734,6 +734,11 @@ func updateCaptchaFromForm(settings *config.Settings, r *http.Request) {
 	if d, err := time.ParseDuration(r.FormValue("captchaTimeout")); err == nil {
 		settings.Captcha.Timeout = d
 	}
+	if v := strings.TrimSpace(r.FormValue("captchaPassMute")); v == "" || v == "0" {
+		settings.Captcha.PassMute = 0
+	} else if d, err := time.ParseDuration(v); err == nil {
+		settings.Captcha.PassMute = d
+	}
 	if v := r.FormValue("captchaFailAction"); v != "" {
 		settings.Captcha.FailAction = v
 	}

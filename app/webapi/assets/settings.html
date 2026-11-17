@@ -904,6 +904,11 @@
                         <option value="mute" {{if eq .Captcha.FailAction "mute"}}selected{{end}}>Keep muted</option>
                     </select>
                 </div>
+                <div class="col-md-3 mb-3">
+                    <label for="captchaPassMute" class="form-label">Mute After Correct Answer</label>
+                    <input type="text" class="form-control" id="captchaPassMute" name="captchaPassMute" value="{{.Captcha.PassMute}}">
+                    <div class="form-text">e.g. 15m, 1h; 0 lets them write at once (1m to 24h)</div>
+                </div>
             </div>
             <h6 class="settings-subhead">Question</h6>
             <div class="row mb-3">
@@ -950,6 +955,7 @@
                         <tr><th>Correct Answer Number</th><td>{{.Captcha.Answer}}</td></tr>
                         <tr><th>Time to Answer</th><td>{{.Captcha.Timeout}}</td></tr>
                         <tr><th>Wrong or No Answer</th><td>{{.Captcha.FailAction}}</td></tr>
+                        <tr><th>Mute After Correct Answer</th><td>{{.Captcha.PassMute}}</td></tr>
                         <tr><th>Shuffle Answers</th><td>{{.Captcha.Shuffle}}</td></tr>
                     </tbody>
                 </table>

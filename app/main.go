@@ -199,6 +199,7 @@ type options struct {
 		Answer     int           `long:"answer" env:"ANSWER" default:"1" description:"number of the correct answer, starting at 1"`
 		Timeout    time.Duration `long:"timeout" env:"TIMEOUT" default:"3m" description:"time to answer"`
 		FailAction string        `long:"fail-action" env:"FAIL_ACTION" choice:"kick" choice:"ban" choice:"mute" default:"kick" description:"action on a wrong answer or no answer"`
+		PassMute   time.Duration `long:"pass-mute" env:"PASS_MUTE" default:"0s" description:"keep members muted this long after a correct answer, 0 lifts the mute at once"`
 		Shuffle    bool          `long:"shuffle" env:"SHUFFLE" description:"show the answers in random order"`
 		Intro      string        `long:"intro" env:"INTRO" default:"Welcome {name}! Answer within {seconds} seconds to write in {group}." description:"text above the question, supports {name}, {group}, {seconds}, {minutes}"`
 		PassMsg    string        `long:"pass-msg" env:"PASS_MSG" default:"Correct, welcome!" description:"text after a correct answer"`
@@ -1497,6 +1498,6 @@ func setupLog(dbg bool, secrets ...string) {
 // captchaConfig converts the captcha settings to the listener config
 func captchaConfig(c config.CaptchaSettings) events.CaptchaConfig {
 	return events.CaptchaConfig{Enabled: c.Enabled, Question: c.Question, Options: c.Options, Answer: c.Answer,
-		Timeout: c.Timeout, FailAction: c.FailAction, Shuffle: c.Shuffle, Intro: c.Intro, PassMsg: c.PassMsg,
+		Timeout: c.Timeout, FailAction: c.FailAction, PassMute: c.PassMute, Shuffle: c.Shuffle, Intro: c.Intro, PassMsg: c.PassMsg,
 		FailMsg: c.FailMsg, NotYours: c.NotYours}
 }

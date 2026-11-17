@@ -249,3 +249,20 @@ func TestCaptcha_StaleAndBadCallbacks(t *testing.T) {
 	assert.Empty(t, c.pending)
 	assert.Len(t, requestsOf[tbapi.DeleteMessageConfig](api), 1)
 }
+
+func TestCaptcha_PassMute(t *testing.T) {
+	api := captchaAPI(42)
+	cfg := testCaptchaConfig()
+	cfg.PassMute = 15 * time.Minute
+	c := newTestCaptcha(api, cfg)
+	c.OnNewMember(&tbapi.User{ID: 42, FirstName: "Ann"})
+	require.NoError(t, c.OnCallback(&tbapi.CallbackQuery{ID: "1", From: &tbapi.User{ID: 42}, Data: buttonData(t, api, "4")}))
+
+	mutes := requestsOf[tbapi.RestrictChatMemberConfig](api)
+	require.Len(t, mutes, 2)
+	assert.False(t, mutes[1].Permissions.CanSendMessages, "still muted")
+	left := time.Until(time.Unix(mutes[1].UntilDate, 0))
+	assert.InDelta(t, (15 * time.Minute).Seconds(), left.Seconds(), 5, "Telegram lifts it after 15 minutes")
+	assert.Empty(t, requestsOf[tbapi.BanChatMemberConfig](api))
+	assert.Empty(t, c.pending)
+}
