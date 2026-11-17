@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Log in - TG-Spam</title>
+    {{template "heads.html"}}
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<nav class="navbar site-nav login-nav">
+    <div class="container-fluid">
+        <a class="navbar-brand brand" href="/login">
+            <img src="/logo.png" alt="Logo" class="mark">
+            <span class="div" aria-hidden="true"></span>
+            <span class="name">TG-Spam</span>
+        </a>
+        <div class="nav-tools">
+            <button id="theme-toggle" class="tool" type="button" aria-label="Switch theme" title="Switch theme">
+                <span class="ic sun"><i class="bi bi-sun"></i></span>
+                <span class="ic moon"><i class="bi bi-moon-stars"></i></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<main class="container page login-main">
+    <form class="card panel login" method="post" action="/login" autocomplete="on">
+        <span class="login-icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></span>
+        <h1 class="page-title">Log in</h1>
+        <p class="lead">Enter the admin username and password to manage the anti-spam bot.</p>
+        <input type="hidden" name="next" value="{{.Next}}">
+        <label class="field">
+            <span class="form-label">Username</span>
+            <input class="form-control" id="lgUser" name="username" value="{{.User}}" autocomplete="username"
+                   spellcheck="false" autocapitalize="off" required maxlength="200">
+        </label>
+        <label class="field">
+            <span class="form-label">Password</span>
+            <span class="pw-wrap">
+                <input class="form-control" id="lgPass" name="password" type="password" autocomplete="current-password" required>
+                <button class="pw-eye" type="button" id="lgEye" aria-label="Show password" title="Show password"><i class="bi bi-eye"></i></button>
+            </span>
+        </label>
+        {{if .Error}}<p class="login-err" role="alert"><i class="bi bi-exclamation-circle"></i> {{.Error}}</p>{{end}}
+        <button class="btn btn-primary btn-lg" id="lgBtn" type="submit"><i class="bi bi-box-arrow-in-right"></i>&nbsp;Log in</button>
+        <p class="login-alt">You stay logged in on this device for 30 days.</p>
+    </form>
+</main>
+<script>
+(function () {
+    var root = document.documentElement, btn = document.getElementById('theme-toggle');
+    function apply(t, save) {
+        root.setAttribute('data-theme', t);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t === 'light' ? '#eceff3' : '#0e1116');
+        if (save) { try { localStorage.setItem('tgspam:theme', t); } catch (e) {} }
+    }
+    btn.addEventListener('click', function () { apply(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light', true); });
+    var u = document.getElementById('lgUser'), p = document.getElementById('lgPass'), eye = document.getElementById('lgEye');
+    if (!u.value) { try { u.value = localStorage.getItem('tgspam:user') || ''; } catch (e) {} }
+    (u.value ? p : u).focus();
+    eye.addEventListener('click', function () {
+        var show = p.type === 'password';
+        p.type = show ? 'text' : 'password';
+        eye.innerHTML = show ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+        eye.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+    document.querySelector('form.login').addEventListener('submit', function () {
+        try { localStorage.setItem('tgspam:user', u.value.trim()); } catch (e) {}
+        document.getElementById('lgBtn').disabled = true;
+    });
+})();
+</script>
+</body>
+</html>

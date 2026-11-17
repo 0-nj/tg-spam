@@ -59,6 +59,7 @@ type Server struct {
 	// appSettingsMu guards AppSettings against data races between the config
 	// handlers (load/update/save) and read paths (settings pages, /settings API).
 	appSettingsMu sync.RWMutex
+	loginLimit    loginLimiter // failed web log-ins per IP
 }
 
 // Config defines server parameters
@@ -210,6 +211,14 @@ func (s *Server) basicAuthMiddleware(h http.Handler) http.Handler {
 			h.ServeHTTP(w, r)
 			return
 		}
+		if publicPaths[r.URL.Path] || s.validSession(r) {
+			h.ServeHTTP(w, r)
+			return
+		}
+		// browsers get the log-in page instead of the Basic Auth prompt
+		if loginRedirect(w, r) {
+			return
+		}
 		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
@@ -331,12 +340,10 @@ func (s *Server) routes(router *routegroup.Bundle) *routegroup.Bundle {
 			})
 		}
 
-		// handle logout - force Basic Auth re-authentication
-		webUI.HandleFunc("GET /logout", func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Basic realm="tg-spam"`)
-			w.WriteHeader(http.StatusUnauthorized)
-			fmt.Fprintln(w, "Logged out successfully")
-		})
+		// log in / log out pages (the session cookie replaces the browser's Basic Auth prompt)
+		webUI.HandleFunc("GET /login", s.loginPageHandler)
+		webUI.HandleFunc("POST /login", s.loginSubmitHandler)
+		webUI.HandleFunc("GET /logout", s.logoutHandler)
 
 		// serve only specific static files at root level
 		staticFiles := newStaticFS(templateFS,

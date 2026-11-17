@@ -527,3 +527,21 @@ img[src="/spinner.svg"]{ filter:var(--spinner-filter); }
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
 }
+
+/* ---------- 13. Log in page (/login) — same layout as Collections+ ---------- */
+.login-main{ display:grid; place-items:start center; }
+.login{ width:min(440px, 100%); display:grid; gap:16px; margin-top:clamp(8px, 6vh, 64px); padding:clamp(22px, 4vmin, 36px); }
+.login .login-icon{ width:52px; height:52px; display:grid; place-items:center; border-radius:16px; background:var(--accent-soft); color:var(--accent); font-size:24px; }
+.login .page-title{ font-size:clamp(28px, 6vw, 40px); }
+.login .lead{ margin:0; color:var(--dim); font-size:15px; }
+.login .field{ display:grid; gap:6px; margin:0; }
+.login .field .form-label{ margin:0; }
+.login .btn{ width:100%; justify-content:center; }
+.login .pw-wrap{ position:relative; display:block; }
+.login .pw-wrap .form-control{ padding-right:46px; }
+.login .pw-eye{ position:absolute; top:50%; right:6px; transform:translateY(-50%); width:36px; height:36px; display:grid; place-items:center;
+  border:0; border-radius:10px; background:transparent; color:var(--faint); }
+.login .pw-eye:hover{ color:var(--text); background:var(--hover); }
+.login-err{ margin:0; padding:10px 12px; border-radius:12px; background:var(--danger-bg); color:var(--danger); font-size:14px; }
+.login-alt{ margin:0; text-align:center; font-size:13px; color:var(--faint); }
+.login-nav .nav-tools{ margin-left:auto !important; }

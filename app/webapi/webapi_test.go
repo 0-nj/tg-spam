@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -2101,25 +2100,6 @@ func TestServer_downloadExportToPostgresHandler(t *testing.T) {
 
 // Additional test cases for the checkIDHandler have been implicitly covered in the TestServer_routes tests
 // where the routing infrastructure properly sets Path Values.
-func TestServer_logoutHandler(t *testing.T) {
-	// create a function that matches our logout handler implementation in routes
-	logoutHandler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("WWW-Authenticate", `Basic realm="tg-spam"`)
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintln(w, "Logged out successfully")
-	}
-	req := httptest.NewRequest("GET", "/logout", http.NoBody)
-	w := httptest.NewRecorder()
-	logoutHandler(w, req)
-	resp := w.Result()
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-	assert.Equal(t, `Basic realm="tg-spam"`, resp.Header.Get("WWW-Authenticate"))
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(body), "Logged out successfully")
-}
-
 // TestTemplateRendering tests that all templates render successfully with minimal settings
 func TestTemplateRendering(t *testing.T) {
 	tests := []struct {
