@@ -545,3 +545,8 @@ img[src="/spinner.svg"]{ filter:var(--spinner-filter); }
 .login-err{ margin:0; padding:10px 12px; border-radius:12px; background:var(--danger-bg); color:var(--danger); font-size:14px; }
 .login-alt{ margin:0; text-align:center; font-size:13px; color:var(--faint); }
 .login-nav .nav-tools{ margin-left:auto !important; }
+
+/* captcha question cards */
+.card.panel.captcha-q{ padding:18px 20px 6px !important; }
+.captcha-q-head{ display:flex; align-items:center; justify-content:space-between; padding-bottom:10px; border-bottom:1px solid var(--border); gap:12px; margin-bottom:10px; }
+.captcha-q-title{ font-weight:600; color:var(--dim); }

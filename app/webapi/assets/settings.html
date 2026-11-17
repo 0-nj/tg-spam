@@ -910,22 +910,62 @@
                     <div class="form-text">e.g. 15m, 1h; 0 lets them write at once (1m to 24h)</div>
                 </div>
             </div>
-            <h6 class="settings-subhead">Question</h6>
-            <div class="row mb-3">
-                <div class="col-md-6 mb-3">
-                    <label for="captchaQuestion" class="form-label">Question</label>
-                    <input type="text" class="form-control" id="captchaQuestion" name="captchaQuestion" dir="auto" value="{{.Captcha.Question}}">
-                    <label for="captchaAnswer" class="form-label mt-3">Correct Answer Number</label>
-                    <input type="number" min="1" max="8" class="form-control" id="captchaAnswer" name="captchaAnswer" value="{{.Captcha.Answer}}">
-                    <div class="form-text">Line number of the right answer in the list, starting at 1.</div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="captchaOptions" class="form-label">Answers (one per line)</label>
-                    <textarea class="form-control" id="captchaOptions" name="captchaOptions" rows="5" dir="auto">{{range .Captcha.Options}}{{.}}
+            <h6 class="settings-subhead">Questions</h6>
+            <p class="form-text mt-0 mb-3">Each new member gets one of these questions at random, so a bot that learned one answer can't reuse it. Up to 50 questions.</p>
+            <div id="captchaQuestions">
+                {{range $i, $q := .Captcha.AllQuestions}}
+                <div class="captcha-q card panel mb-3">
+                    <div class="captcha-q-head">
+                        <span class="captcha-q-title">Question <span class="captcha-q-num">{{inc $i}}</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-danger captcha-q-remove"><i class="bi bi-trash"></i>&nbsp;Remove</button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Question</label>
+                            <input type="text" class="form-control" name="captchaQuestion" dir="auto" value="{{$q.Question}}">
+                            <label class="form-label mt-3">Correct Answer Number</label>
+                            <input type="number" min="1" max="8" class="form-control" name="captchaAnswer" value="{{$q.Answer}}">
+                            <div class="form-text">Line number of the right answer in the list, starting at 1.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Answers (one per line)</label>
+                            <textarea class="form-control" name="captchaOptions" rows="5" dir="auto">{{range $q.Options}}{{.}}
 {{end}}</textarea>
-                    <div class="form-text">2 to 8 answers, each becomes a button.</div>
+                            <div class="form-text">2 to 8 answers, each becomes a button.</div>
+                        </div>
+                    </div>
                 </div>
+                {{end}}
             </div>
+            <button type="button" class="btn btn-outline-primary mb-4" id="captchaAddQ"><i class="bi bi-plus-lg"></i>&nbsp;Add question</button>
+            <script>
+            (function () {
+                var list = document.getElementById('captchaQuestions'), add = document.getElementById('captchaAddQ');
+                if (!list || !add) return;
+                function renumber() {
+                    var cards = list.querySelectorAll('.captcha-q');
+                    cards.forEach(function (c, i) {
+                        c.querySelector('.captcha-q-num').textContent = i + 1;
+                        c.querySelector('.captcha-q-remove').hidden = cards.length < 2;
+                    });
+                    add.disabled = cards.length >= 50;
+                }
+                add.addEventListener('click', function () {
+                    var card = list.querySelector('.captcha-q').cloneNode(true);
+                    card.querySelectorAll('input, textarea').forEach(function (el) { el.value = ''; });
+                    list.appendChild(card);
+                    renumber();
+                    card.querySelector('input[name=captchaQuestion]').focus();
+                });
+                list.addEventListener('click', function (e) {
+                    var btn = e.target.closest('.captcha-q-remove');
+                    if (!btn || list.querySelectorAll('.captcha-q').length < 2) return;
+                    btn.closest('.captcha-q').remove();
+                    renumber();
+                });
+                renumber();
+            })();
+            </script>
             <h6 class="settings-subhead">Texts</h6>
             <div class="row mb-3">
                 <div class="col-md-6 mb-3">
@@ -950,9 +990,9 @@
                     </thead>
                     <tbody>
                         <tr><th>Captcha Enabled</th><td>{{.Captcha.Enabled}}</td></tr>
-                        <tr><th>Question</th><td dir="auto">{{.Captcha.Question}}</td></tr>
-                        <tr><th>Answers</th><td dir="auto">{{range $i, $o := .Captcha.Options}}{{if $i}} · {{end}}{{$o}}{{end}}</td></tr>
-                        <tr><th>Correct Answer Number</th><td>{{.Captcha.Answer}}</td></tr>
+                        {{range $i, $q := .Captcha.AllQuestions}}
+                        <tr><th>Question {{inc $i}}</th><td dir="auto">{{$q.Question}}<br><small>{{range $j, $o := $q.Options}}{{if $j}} · {{end}}{{if eq (inc $j) $q.Answer}}<b>✓ {{$o}}</b>{{else}}{{$o}}{{end}}{{end}}</small></td></tr>
+                        {{end}}
                         <tr><th>Time to Answer</th><td>{{.Captcha.Timeout}}</td></tr>
                         <tr><th>Wrong or No Answer</th><td>{{.Captcha.FailAction}}</td></tr>
                         <tr><th>Mute After Correct Answer</th><td>{{.Captcha.PassMute}}</td></tr>

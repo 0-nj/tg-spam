@@ -230,6 +230,38 @@ type CaptchaSettings struct {
 	PassMsg    string        `json:"pass_msg" yaml:"pass_msg" db:"captcha_pass_msg"`
 	FailMsg    string        `json:"fail_msg" yaml:"fail_msg" db:"captcha_fail_msg"`
 	NotYours   string        `json:"not_yours" yaml:"not_yours" db:"captcha_not_yours"`
+	// Extra holds more questions; every new member gets one of all the questions at random
+	Extra []CaptchaQuestion `json:"extra_questions,omitempty" yaml:"extra_questions,omitempty" db:"captcha_extra_questions"`
+}
+
+// CaptchaQuestion is one more captcha question with its answers
+type CaptchaQuestion struct {
+	Question string   `json:"question" yaml:"question"`
+	Options  []string `json:"options" yaml:"options"`
+	Answer   int      `json:"answer" yaml:"answer"` // 1-based number of the correct option
+}
+
+// AllQuestions returns the main question followed by the extra ones
+func (c CaptchaSettings) AllQuestions() []CaptchaQuestion {
+	return append([]CaptchaQuestion{{Question: c.Question, Options: c.Options, Answer: c.Answer}}, c.Extra...)
+}
+
+func (q CaptchaQuestion) validate(n int) error {
+	if strings.TrimSpace(q.Question) == "" {
+		return fmt.Errorf("captcha question %d has no text", n)
+	}
+	if len(q.Options) < 2 || len(q.Options) > 8 {
+		return fmt.Errorf("captcha question %d needs 2 to 8 answers, got %d", n, len(q.Options))
+	}
+	for i, o := range q.Options {
+		if strings.TrimSpace(o) == "" {
+			return fmt.Errorf("captcha question %d: answer %d is empty", n, i+1)
+		}
+	}
+	if q.Answer < 1 || q.Answer > len(q.Options) {
+		return fmt.Errorf("captcha question %d: correct answer number (%d) must point to one of the %d answers", n, q.Answer, len(q.Options))
+	}
+	return nil
 }
 
 // WarnSettings contains admin /warn auto-ban settings
@@ -567,6 +599,14 @@ func (c CaptchaSettings) validate() error {
 	}
 	if c.Answer < 1 || c.Answer > len(c.Options) {
 		return fmt.Errorf("captcha.answer (%d) must point to one of the %d answers", c.Answer, len(c.Options))
+	}
+	if len(c.Extra) > 49 {
+		return fmt.Errorf("captcha allows up to 50 questions, got %d", len(c.Extra)+1)
+	}
+	for i, q := range c.Extra {
+		if err := q.validate(i + 2); err != nil {
+			return err
+		}
 	}
 	if c.Timeout < 30*time.Second || c.Timeout > time.Hour {
 		return fmt.Errorf("captcha.timeout (%v) must be between 30s and 1h", c.Timeout)

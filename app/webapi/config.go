@@ -720,16 +720,33 @@ func updateCaptchaFromForm(settings *config.Settings, r *http.Request) {
 	}
 	settings.Captcha.Enabled = r.FormValue("captchaEnabled") == "on"
 	settings.Captcha.Shuffle = r.FormValue("captchaShuffle") == "on"
-	settings.Captcha.Question = strings.TrimSpace(r.FormValue("captchaQuestion"))
-	var options []string
-	for line := range strings.SplitSeq(r.FormValue("captchaOptions"), "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			options = append(options, line)
+	// one card per question: the fields repeat in order; empty cards are dropped, the first one is the main question
+	var qs []config.CaptchaQuestion
+	answers := r.Form["captchaAnswer"]
+	optionLists := r.Form["captchaOptions"]
+	for i, text := range r.Form["captchaQuestion"] {
+		q := config.CaptchaQuestion{Question: strings.TrimSpace(text)}
+		if i < len(optionLists) {
+			for line := range strings.SplitSeq(optionLists[i], "\n") {
+				if line = strings.TrimSpace(line); line != "" {
+					q.Options = append(q.Options, line)
+				}
+			}
 		}
+		if i < len(answers) {
+			q.Answer, _ = strconv.Atoi(strings.TrimSpace(answers[i]))
+		}
+		if q.Question == "" && len(q.Options) == 0 {
+			continue
+		}
+		qs = append(qs, q)
 	}
-	settings.Captcha.Options = options
-	if n, err := strconv.Atoi(r.FormValue("captchaAnswer")); err == nil {
-		settings.Captcha.Answer = n
+	settings.Captcha.Question, settings.Captcha.Options, settings.Captcha.Answer, settings.Captcha.Extra = "", nil, 0, nil
+	if len(qs) > 0 {
+		settings.Captcha.Question, settings.Captcha.Options, settings.Captcha.Answer = qs[0].Question, qs[0].Options, qs[0].Answer
+		if len(qs) > 1 {
+			settings.Captcha.Extra = qs[1:]
+		}
 	}
 	if d, err := time.ParseDuration(r.FormValue("captchaTimeout")); err == nil {
 		settings.Captcha.Timeout = d

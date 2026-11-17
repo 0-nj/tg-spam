@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCaptchaSettings_Validate(t *testing.T) {
@@ -38,4 +39,15 @@ func TestCaptchaSettings_Validate(t *testing.T) {
 			assert.ErrorContains(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestCaptchaSettings_ValidateExtra(t *testing.T) {
+	c := CaptchaSettings{Enabled: true, Question: "q", Options: []string{"a", "b"}, Answer: 1, Timeout: time.Minute, FailAction: "ban",
+		Extra: []CaptchaQuestion{{Question: "q2", Options: []string{"x", "y"}, Answer: 2}}}
+	require.NoError(t, c.validate())
+	c.Extra = append(c.Extra, CaptchaQuestion{Question: "q3", Options: []string{"x", "y"}, Answer: 5})
+	err := c.validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "question 3")
+	assert.Len(t, c.AllQuestions(), 3)
 }

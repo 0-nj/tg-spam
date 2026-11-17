@@ -1499,5 +1499,13 @@ func setupLog(dbg bool, secrets ...string) {
 func captchaConfig(c config.CaptchaSettings) events.CaptchaConfig {
 	return events.CaptchaConfig{Enabled: c.Enabled, Question: c.Question, Options: c.Options, Answer: c.Answer,
 		Timeout: c.Timeout, FailAction: c.FailAction, PassMute: c.PassMute, Shuffle: c.Shuffle, Intro: c.Intro, PassMsg: c.PassMsg,
-		FailMsg: c.FailMsg, NotYours: c.NotYours}
+		FailMsg: c.FailMsg, NotYours: c.NotYours, Extra: captchaExtra(c.Extra)}
+}
+
+func captchaExtra(qs []config.CaptchaQuestion) []events.CaptchaQuestion {
+	res := make([]events.CaptchaQuestion, 0, len(qs))
+	for _, q := range qs {
+		res = append(res, events.CaptchaQuestion{Question: q.Question, Options: q.Options, Answer: q.Answer})
+	}
+	return res
 }

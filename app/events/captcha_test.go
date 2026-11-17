@@ -266,3 +266,28 @@ func TestCaptcha_PassMute(t *testing.T) {
 	assert.Empty(t, requestsOf[tbapi.BanChatMemberConfig](api))
 	assert.Empty(t, c.pending)
 }
+
+func TestCaptcha_RandomQuestion(t *testing.T) {
+	cfg := testCaptchaConfig()
+	cfg.Extra = []CaptchaQuestion{{Question: "Capital of France?", Options: []string{"Paris", "Rome"}, Answer: 1},
+		{Question: "broken", Options: []string{"only one"}, Answer: 1}}
+	assert.Len(t, cfg.Questions(), 2, "invalid question skipped")
+	seen := map[string]bool{}
+	for i := range 60 {
+		api := captchaAPI()
+		c := newTestCaptcha(api, cfg)
+		id := int64(500 + i)
+		c.OnNewMember(&tbapi.User{ID: id})
+		text := api.SendCalls()[0].C.(tbapi.MessageConfig).Text
+		right := "4"
+		if strings.Contains(text, "Capital of France?") {
+			seen["france"], right = true, "Paris"
+		} else {
+			require.Contains(t, text, "What is 2+2?")
+			seen["math"] = true
+		}
+		require.NoError(t, c.OnCallback(&tbapi.CallbackQuery{ID: "1", From: &tbapi.User{ID: id}, Data: buttonData(t, api, right)}))
+		assert.Empty(t, requestsOf[tbapi.BanChatMemberConfig](api), "right answer of the asked question passes")
+	}
+	assert.Len(t, seen, 2, "both questions were asked")
+}

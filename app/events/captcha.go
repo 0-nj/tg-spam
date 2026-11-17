@@ -28,23 +28,46 @@ const passedTTL = 10 * time.Minute
 
 // CaptchaConfig defines the question asked to new members of the primary group
 type CaptchaConfig struct {
-	Enabled    bool          // ask new members the question
-	Question   string        // question text
-	Options    []string      // answer buttons
-	Answer     int           // 1-based number of the correct option
-	Timeout    time.Duration // time to answer
-	FailAction string        // kick, ban or mute on a wrong answer or no answer
-	PassMute   time.Duration // keep a member who answered correctly muted this long, 0 lifts the mute at once
-	Shuffle    bool          // show the options in random order
-	Intro      string        // text above the question, supports {name}, {group}, {seconds} and {minutes}
-	PassMsg    string        // text shown after a correct answer
-	FailMsg    string        // text shown after a wrong answer or timeout
-	NotYours   string        // popup for members pressing a button of someone else's question
+	Enabled    bool              // ask new members the question
+	Question   string            // question text
+	Options    []string          // answer buttons
+	Answer     int               // 1-based number of the correct option
+	Extra      []CaptchaQuestion // more questions; each member gets one of all the questions at random
+	Timeout    time.Duration     // time to answer
+	FailAction string            // kick, ban or mute on a wrong answer or no answer
+	PassMute   time.Duration     // keep a member who answered correctly muted this long, 0 lifts the mute at once
+	Shuffle    bool              // show the options in random order
+	Intro      string            // text above the question, supports {name}, {group}, {seconds} and {minutes}
+	PassMsg    string            // text shown after a correct answer
+	FailMsg    string            // text shown after a wrong answer or timeout
+	NotYours   string            // popup for members pressing a button of someone else's question
 }
 
-// Ready tells if the config can be used to ask the question
+// CaptchaQuestion is one question with its answer buttons
+type CaptchaQuestion struct {
+	Question string
+	Options  []string
+	Answer   int // 1-based number of the correct option
+}
+
+func (q CaptchaQuestion) valid() bool {
+	return strings.TrimSpace(q.Question) != "" && len(q.Options) >= 2 && q.Answer >= 1 && q.Answer <= len(q.Options)
+}
+
+// Questions returns every usable question, the main one first
+func (c CaptchaConfig) Questions() []CaptchaQuestion {
+	var res []CaptchaQuestion
+	for _, q := range append([]CaptchaQuestion{{Question: c.Question, Options: c.Options, Answer: c.Answer}}, c.Extra...) {
+		if q.valid() {
+			res = append(res, q)
+		}
+	}
+	return res
+}
+
+// Ready tells if the config can be used to ask a question
 func (c CaptchaConfig) Ready() bool {
-	return c.Enabled && strings.TrimSpace(c.Question) != "" && len(c.Options) >= 2 && c.Answer >= 1 && c.Answer <= len(c.Options)
+	return c.Enabled && len(c.Questions()) > 0
 }
 
 // captchaChallenge is a question waiting for one member's answer
@@ -56,7 +79,9 @@ type captchaChallenge struct {
 	msgID       int
 	viaDM       bool
 	joinRequest bool // asked for a join request, not yet a member
-	correct     int  // 0-based index of the correct option in the config order
+	correct     int  // 0-based index of the correct option in the question's order
+	question    string
+	options     []string
 	failAction  string
 	failMsg     string
 	passMsg     string
@@ -350,7 +375,9 @@ func (c *captcha) newChallenge(cfg CaptchaConfig, u *tbapi.User) *captchaChallen
 	c.seq++
 	seq := c.seq
 	c.mu.Unlock()
-	return &captchaChallenge{userID: u.ID, name: name, seq: seq, correct: cfg.Answer - 1,
+	qs := cfg.Questions()
+	q := qs[rand.IntN(len(qs))] // a different question for each member makes answers learned by bots useless
+	return &captchaChallenge{userID: u.ID, name: name, seq: seq, correct: q.Answer - 1, question: q.Question, options: q.Options,
 		failAction: cfg.FailAction, failMsg: cfg.FailMsg, passMsg: cfg.PassMsg, passMute: cfg.PassMute}
 }
 
@@ -378,9 +405,9 @@ func (c *captcha) sendQuestion(cfg CaptchaConfig, ch *captchaChallenge, chatID i
 		text.WriteString(repl.Replace(html.EscapeString(intro)))
 		text.WriteString("\n\n")
 	}
-	text.WriteString("<b>" + html.EscapeString(cfg.Question) + "</b>")
+	text.WriteString("<b>" + html.EscapeString(ch.question) + "</b>")
 
-	order := make([]int, len(cfg.Options))
+	order := make([]int, len(ch.options))
 	for i := range order {
 		order[i] = i
 	}
@@ -390,7 +417,7 @@ func (c *captcha) sendQuestion(cfg CaptchaConfig, ch *captchaChallenge, chatID i
 	rows := make([][]tbapi.InlineKeyboardButton, 0, len(order))
 	for _, idx := range order {
 		data := fmt.Sprintf("%s%d:%d:%d", captchaCallbackPrefix, ch.userID, ch.seq, idx)
-		rows = append(rows, tbapi.NewInlineKeyboardRow(tbapi.NewInlineKeyboardButtonData(cfg.Options[idx], data)))
+		rows = append(rows, tbapi.NewInlineKeyboardRow(tbapi.NewInlineKeyboardButtonData(ch.options[idx], data)))
 	}
 
 	msg := tbapi.NewMessage(chatID, text.String())

@@ -44,6 +44,21 @@ func TestUpdateCaptchaFromForm(t *testing.T) {
 	})
 }
 
+func TestUpdateCaptchaFromForm_SeveralQuestions(t *testing.T) {
+	v := url.Values{"captchaForm": {"1"}, "captchaTimeout": {"3m"}, "captchaFailAction": {"ban"},
+		"captchaQuestion": {"Q1", "", "Q3"}, "captchaOptions": {"a\nb", "", "x\ny\nz"}, "captchaAnswer": {"1", "", "3"}}
+	r := httptest.NewRequest(http.MethodPost, "/config", strings.NewReader(v.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	require.NoError(t, r.ParseForm())
+	s := &config.Settings{}
+	updateCaptchaFromForm(s, r)
+	assert.Equal(t, "Q1", s.Captcha.Question)
+	assert.Equal(t, []string{"a", "b"}, s.Captcha.Options)
+	assert.Equal(t, 1, s.Captcha.Answer)
+	assert.Equal(t, []config.CaptchaQuestion{{Question: "Q3", Options: []string{"x", "y", "z"}, Answer: 3}}, s.Captcha.Extra,
+		"empty card dropped")
+}
+
 func TestRestartHandler(t *testing.T) {
 	done := make(chan struct{})
 	s := &Server{Config: Config{Restart: func() { close(done) }}}

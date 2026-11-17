@@ -7,8 +7,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha1" //nolint
+	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,7 +50,20 @@ import (
 
 //go:embed assets/* assets/components/*
 var templateFS embed.FS
-var tmpl = template.Must(template.ParseFS(templateFS, "assets/*.html", "assets/components/*.html"))
+var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
+	"inc":    func(i int) int { return i + 1 },
+	"cssURL": func() string { return cssURL },
+}).ParseFS(templateFS, "assets/*.html", "assets/components/*.html"))
+
+// cssURL carries a hash of the stylesheet so caches (Cloudflare, browsers) fetch a new one after each change
+var cssURL = func() string {
+	data, err := templateFS.ReadFile("assets/styles.css")
+	if err != nil {
+		return "/styles.css"
+	}
+	sum := sha256.Sum256(data)
+	return "/styles.css?v=" + hex.EncodeToString(sum[:6])
+}()
 
 // startTime tracks when the server started
 var startTime = time.Now()
