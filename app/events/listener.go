@@ -203,7 +203,7 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 
 	u := tbapi.NewUpdate(0)
 	u.Timeout = 60
-	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction", "chat_join_request"}
+	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction", "chat_join_request", "chat_member"}
 
 	updates := l.TbAPI.GetUpdatesChan(u)
 	log.Printf("[DEBUG] start listening for updates")
@@ -286,6 +286,11 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 				if err := l.procReaction(ctx, update.MessageReaction); err != nil {
 					log.Printf("[WARN] failed to process reaction: %v", err)
 				}
+				continue
+			}
+
+			if update.ChatMember != nil {
+				l.procChatMember(update.ChatMember)
 				continue
 			}
 
@@ -1016,4 +1021,35 @@ func (s SuperUsers) IsSuper(userName string, userID int64) bool {
 		}
 	}
 	return false
+}
+
+// inChat tells if a chat member status means the user is in the chat
+func inChat(m tbapi.ChatMember) bool {
+	switch m.Status {
+	case "creator", "administrator", "member":
+		return true
+	case "restricted":
+		return m.IsMember
+	}
+	return false
+}
+
+// procChatMember handles member updates of the primary group. Telegram doesn't send a join message
+// for every join in big groups or groups with hidden members, but the member update always comes
+// (the bot must be an admin), so the captcha starts from here too; the captcha drops the duplicate.
+func (l *TelegramListener) procChatMember(cm *tbapi.ChatMemberUpdated) {
+	if cm.Chat.ID != l.chatID || cm.NewChatMember.User == nil {
+		return
+	}
+	user := cm.NewChatMember.User
+	switch was, now := inChat(cm.OldChatMember), inChat(cm.NewChatMember); {
+	case !was && now:
+		if user.IsBot || (l.BotUsername != "" && strings.EqualFold(user.UserName, l.BotUsername)) {
+			return
+		}
+		log.Printf("[DEBUG] member update: %s (%d) joined", user.UserName, user.ID)
+		l.captcha().OnNewMember(user)
+	case was && !now:
+		l.captcha().OnLeft(user.ID)
+	}
 }

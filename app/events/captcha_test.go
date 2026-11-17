@@ -291,3 +291,42 @@ func TestCaptcha_RandomQuestion(t *testing.T) {
 	}
 	assert.Len(t, seen, 2, "both questions were asked")
 }
+
+func TestCaptcha_DuplicateJoinReport(t *testing.T) {
+	api := captchaAPI(42)
+	c := newTestCaptcha(api, testCaptchaConfig())
+	c.OnNewMember(&tbapi.User{ID: 42})
+	require.NoError(t, c.OnCallback(&tbapi.CallbackQuery{ID: "1", From: &tbapi.User{ID: 42}, Data: buttonData(t, api, "4")}))
+	sends := len(api.SendCalls())
+	c.OnNewMember(&tbapi.User{ID: 42}) // the same join reported by the member update
+	assert.Len(t, api.SendCalls(), sends, "no second question for the same join")
+
+	c.OnLeft(42)
+	c.OnNewMember(&tbapi.User{ID: 42})
+	assert.Greater(t, len(api.SendCalls()), sends, "a new join after leaving is asked again")
+}
+
+func TestListener_ProcChatMember(t *testing.T) {
+	api := captchaAPI(42)
+	l := &TelegramListener{TbAPI: api, Captcha: testCaptchaConfig(), chatID: testGroupID, BotUsername: "mybot"}
+	l.captcha().setChat(testGroupID, "Group")
+	upd := func(chat int64, user tbapi.User, old, now tbapi.ChatMember) *tbapi.ChatMemberUpdated {
+		old.User, now.User = &user, &user
+		return &tbapi.ChatMemberUpdated{Chat: tbapi.Chat{ID: chat}, OldChatMember: old, NewChatMember: now}
+	}
+	left, member := tbapi.ChatMember{Status: "left"}, tbapi.ChatMember{Status: "member"}
+
+	l.procChatMember(upd(-5, tbapi.User{ID: 42}, left, member))
+	assert.Empty(t, api.SendCalls(), "other chat ignored")
+	l.procChatMember(upd(testGroupID, tbapi.User{ID: 7, UserName: "mybot"}, left, member))
+	assert.Empty(t, api.SendCalls(), "the bot itself ignored")
+	l.procChatMember(upd(testGroupID, tbapi.User{ID: 42}, member, tbapi.ChatMember{Status: "restricted", IsMember: true}))
+	assert.Empty(t, api.SendCalls(), "restricting a member is no join")
+
+	l.procChatMember(upd(testGroupID, tbapi.User{ID: 42, FirstName: "Ann"}, left, member))
+	require.Len(t, api.SendCalls(), 2, "DM tried, then asked in the group")
+	assert.Len(t, l.captcha().pending, 1)
+
+	l.procChatMember(upd(testGroupID, tbapi.User{ID: 42}, tbapi.ChatMember{Status: "restricted", IsMember: true}, left))
+	assert.Empty(t, l.captcha().pending, "leaving drops the question")
+}

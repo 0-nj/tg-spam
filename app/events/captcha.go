@@ -104,10 +104,15 @@ type captcha struct {
 	seq       int64
 	pending   map[int64]*captchaChallenge // by user id
 	passed    map[int64]time.Time         // answered in DM before the join, by user id
+	joined    map[int64]time.Time         // recent joins, a join can arrive twice (join message and member update)
 }
 
+// joinDedup is how long a second report of the same join is ignored
+const joinDedup = 2 * time.Minute
+
 func newCaptcha(api TbAPI, cfg CaptchaConfig) *captcha {
-	return &captcha{tbAPI: api, cfg: cfg, pending: map[int64]*captchaChallenge{}, passed: map[int64]time.Time{}}
+	return &captcha{tbAPI: api, cfg: cfg, pending: map[int64]*captchaChallenge{}, passed: map[int64]time.Time{},
+		joined: map[int64]time.Time{}}
 }
 
 // SetConfig replaces the captcha config, questions already asked keep their own settings
@@ -168,6 +173,18 @@ func (c *captcha) OnNewMember(member *tbapi.User) {
 		return
 	}
 	c.mu.Lock()
+	if at, dup := c.joined[member.ID]; dup && time.Since(at) < joinDedup {
+		c.mu.Unlock()
+		return
+	}
+	if len(c.joined) > 1000 {
+		for id, at := range c.joined {
+			if time.Since(at) >= joinDedup {
+				delete(c.joined, id)
+			}
+		}
+	}
+	c.joined[member.ID] = time.Now()
 	chatID := c.chatID
 	_, busy := c.pending[member.ID]
 	passedAt, passed := c.passed[member.ID]
@@ -215,6 +232,7 @@ func (c *captcha) OnNewMember(member *tbapi.User) {
 // OnLeft drops the question of a member who left before answering
 func (c *captcha) OnLeft(userID int64) {
 	c.mu.Lock()
+	delete(c.joined, userID) // a later join is a new one
 	ch, ok := c.pending[userID]
 	if ok && !ch.joinRequest {
 		delete(c.pending, userID)
