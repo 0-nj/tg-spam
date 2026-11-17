@@ -469,6 +469,18 @@ The reporting system includes rate limiting to prevent abuse. Each user can subm
 
 All reports are stored in the database for audit purposes and can help identify patterns of spam or abuse over time.
 
+### New Member Captcha
+
+With `--captcha.enabled` every new member of the primary group gets a multiple-choice question with one button per answer, and stays muted until they answer. The question goes to the member's private chat when the bot can write there; otherwise it is posted in the group, where only that member's presses count (others get the `--captcha.not-yours` popup). The question is removed after the answer or after `--captcha.timeout` (default 3m).
+
+- correct answer: the mute is lifted (the group's default rights apply)
+- wrong answer or no answer: `--captcha.fail-action` — `kick` (removed, may join again), `ban` or `mute` (stays muted)
+- groups with "approve new members" turned on: the bot answers the join request in the user's private chat (Telegram lets a bot write to anyone who asked to join) and approves or declines the request; if that message can't be delivered the request is approved and the question is asked in the group
+- superusers, approved users and bots are never asked; the mute set on join ends by itself one minute after the timeout, so a bot restart never leaves anyone muted
+- the bot needs the "ban users" admin right, plus "invite users via link" for join requests
+
+Example: `--captcha.enabled --captcha.question="What is 2+2?" --captcha.option=3 --captcha.option=4 --captcha.option=5 --captcha.answer=2 --captcha.shuffle` (env: `CAPTCHA_OPTIONS="3|4|5"`). All captcha settings can be edited on the web settings page in `--confdb` mode and apply without a restart.
+
 ### Warn-Driven Auto-Ban
 
 The admin `/warn` command can optionally escalate to an automatic ban once a user has accumulated enough warnings within a sliding time window. This complements `--report.auto-ban-threshold` (which aggregates user `/report` submissions for one message) by tracking admin warnings per user across messages.
@@ -816,6 +828,19 @@ report:
 warn:
       --warn.threshold=                 auto-ban after N warns within window (0=disabled) (default: 0) [$WARN_THRESHOLD]
       --warn.window=                    sliding window for counting warns (default: 720h) [$WARN_WINDOW]
+
+captcha:
+      --captcha.enabled                 ask new members a question before they can write [$CAPTCHA_ENABLED]
+      --captcha.question=               captcha question [$CAPTCHA_QUESTION]
+      --captcha.option=                 captcha answer, repeat for each (env: separated by |) [$CAPTCHA_OPTIONS]
+      --captcha.answer=                 number of the correct answer, starting at 1 (default: 1) [$CAPTCHA_ANSWER]
+      --captcha.timeout=                time to answer (default: 3m) [$CAPTCHA_TIMEOUT]
+      --captcha.fail-action=[kick|ban|mute] action on a wrong answer or no answer (default: kick) [$CAPTCHA_FAIL_ACTION]
+      --captcha.shuffle                 show the answers in random order [$CAPTCHA_SHUFFLE]
+      --captcha.intro=                  text above the question, supports {name}, {group}, {seconds}, {minutes} (default: Welcome {name}! Answer within {seconds} seconds to write in {group}.) [$CAPTCHA_INTRO]
+      --captcha.pass-msg=               text after a correct answer (default: Correct, welcome!) [$CAPTCHA_PASS_MSG]
+      --captcha.fail-msg=               text after a wrong answer or timeout (default: Wrong answer.) [$CAPTCHA_FAIL_MSG]
+      --captcha.not-yours=              popup when someone else presses a captcha button (default: This question is for the new member only.) [$CAPTCHA_NOT_YOURS]
 
 files:
       --files.samples=                  samples data path, defaults to dynamic data path [$FILES_SAMPLES]

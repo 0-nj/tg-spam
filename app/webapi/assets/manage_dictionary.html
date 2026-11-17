@@ -7,22 +7,24 @@
 <body>
 {{template "navbar.html"}}
 
-<div class="container mt-4">
-    <h2>Manage Dictionary</h2>
+<div class="container page">
+    <header class="page-head">
+        <h2 class="page-title">Manage Dictionary</h2>
+    </header>
 
     <div id="error-message"></div>
 
     <!-- Forms for Adding New Entries -->
     <div class="row mb-4">
         <div class="col-md-6 mb-3">
-            <form hx-post="/dictionary/add" hx-target="#dictionary-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
+            <form hx-post="/dictionary/add" hx-target="#dictionary-list" hx-swap="innerHTML" hx-on::after-request="this.reset()" class="card panel compose">
                 <input type="hidden" name="type" value="stop_phrase">
                 <textarea name="data" class="form-control mb-2" placeholder="Enter stop phrase"></textarea>
                 <button type="submit" class="btn btn-danger">Add Stop Phrase</button>
             </form>
         </div>
         <div class="col-md-6">
-            <form hx-post="/dictionary/add" hx-target="#dictionary-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
+            <form hx-post="/dictionary/add" hx-target="#dictionary-list" hx-swap="innerHTML" hx-on::after-request="this.reset()" class="card panel compose">
                 <input type="hidden" name="type" value="ignored_word">
                 <textarea name="data" class="form-control mb-2" placeholder="Enter ignored word"></textarea>
                 <button type="submit" class="btn btn-success">Add Ignored Word</button>
@@ -42,8 +44,8 @@
 {{define "dictionary_list"}}
     <div class="row" id="dictionary-list">
         <div class="col-md-6">
-            <h4>Stop Phrases ({{.TotalStopPhrases}})</h4>
-            <ul class="list-group" id="stop-phrases-list">
+            <h4 class="list-head">Stop Phrases ({{.TotalStopPhrases}})</h4>
+            <ul class="list-group mb-4" id="stop-phrases-list">
                 {{range .StopPhrases}}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span id="loading-stop-{{.ID}}">{{.Data}} <img class="htmx-indicator" src="/spinner.svg"/></span>
@@ -61,8 +63,8 @@
         </div>
 
         <div class="col-md-6">
-            <h4>Ignored Words ({{.TotalIgnoredWords}})</h4>
-            <ul class="list-group" id="ignored-words-list">
+            <h4 class="list-head">Ignored Words ({{.TotalIgnoredWords}})</h4>
+            <ul class="list-group mb-4" id="ignored-words-list">
                 {{range .IgnoredWords}}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span id="loading-ignored-{{.ID}}">{{.Data}} <img class="htmx-indicator" src="/spinner.svg"/></span>

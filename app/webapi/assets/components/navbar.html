@@ -1,14 +1,24 @@
+<div class="glow" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg site-nav">
     <div class="container-fluid">
-        <a class="navbar-brand" href="/">
-            <img src="/logo.png" alt="Logo" style="height: 30px;"> TG-Spam
+        <a class="navbar-brand brand" href="/">
+            <img src="/logo.png" alt="Logo" class="mark">
+            <span class="div" aria-hidden="true"></span>
+            <span class="name">TG-Spam</span>
         </a>
 
-        <!-- Navbar Toggler for small screens -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <div class="nav-tools order-lg-last">
+            <button id="theme-toggle" class="tool" type="button" aria-label="Switch theme" title="Switch theme">
+                <span class="ic sun"><i class="bi bi-sun"></i></span>
+                <span class="ic moon"><i class="bi bi-moon-stars"></i></span>
+            </button>
+            <!-- Navbar Toggler for small screens -->
+            <button class="navbar-toggler tool" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
 
         <div class="collapse navbar-collapse" id="navbarContent">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
@@ -31,14 +41,14 @@
                     <a class="nav-link" href="/list_settings"><i class="bi bi-gear me-1"></i>Settings</a>
                 </li>
             </ul>
-            
+
             <!-- User dropdown menu on right side -->
             <ul class="navbar-nav">
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle no-focus-highlight" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-person-circle"></i>&nbsp;&nbsp;tg-spam
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark" aria-labelledby="userDropdown">
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                         <li><a class="dropdown-item" href="/download/backup" download><i class="bi bi-download me-2"></i>Create Backup</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" hx-get="/logout" hx-push-url="true"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
@@ -48,3 +58,37 @@
         </div>
     </div>
 </nav>
+<script>
+(function () {
+    var root = document.documentElement, btn = document.getElementById('theme-toggle');
+    function stored() { try { return localStorage.getItem('tgspam:theme'); } catch (e) { return null; } }
+    function apply(t, save) {
+        root.setAttribute('data-theme', t);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t === 'light' ? '#eceff3' : '#0e1116');
+        if (save) { try { localStorage.setItem('tgspam:theme', t); } catch (e) {} }
+        if (btn) {
+            var label = t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+            btn.setAttribute('aria-label', label);
+            btn.title = label;
+        }
+    }
+    apply(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark', false);
+    if (btn) btn.addEventListener('click', function () {
+        apply(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light', true);
+    });
+    try {
+        var mq = window.matchMedia('(prefers-color-scheme: light)');
+        var follow = function (e) { var s = stored(); if (s !== 'light' && s !== 'dark') apply(e.matches ? 'light' : 'dark', false); };
+        if (mq.addEventListener) mq.addEventListener('change', follow); else if (mq.addListener) mq.addListener(follow);
+    } catch (e) {}
+    var path = location.pathname;
+    var links = document.querySelectorAll('#navbarContent .navbar-nav .nav-link[href]');
+    for (var i = 0; i < links.length; i++) {
+        if (links[i].getAttribute('href') === path) {
+            links[i].classList.add('active');
+            links[i].setAttribute('aria-current', 'page');
+        }
+    }
+})();
+</script>

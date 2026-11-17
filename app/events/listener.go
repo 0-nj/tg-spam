@@ -71,6 +71,7 @@ type TelegramListener struct {
 	Warnings                Warnings      // storage for admin /warn records
 	AdmitDocuments          bool          // admit text-less documents for detector checks and locator-backed counters
 	AdmitContacts           bool          // admit text-less shared contacts for detector checks and locator-backed counters
+	Captcha                 CaptchaConfig // question asked to new members of the primary group
 
 	adminHandler    *admin
 	reportsHandler  *userReports
@@ -78,6 +79,9 @@ type TelegramListener struct {
 	chatID          int64
 	adminChatID     int64
 	linkedChannelID int64 // channel linked to the discussion group, resolved at startup
+
+	captchaOnce sync.Once
+	captchaH    *captcha
 
 	msgs struct {
 		once sync.Once
@@ -87,6 +91,23 @@ type TelegramListener struct {
 	// serializes extra-message deletion goroutines so concurrent spam bursts still respect
 	// the per-request rate limiting inside deleteExtraMessages
 	extraDeletesMu sync.Mutex
+}
+
+// SetCaptchaConfig replaces the new-member question settings while the listener runs
+func (l *TelegramListener) SetCaptchaConfig(cfg CaptchaConfig) {
+	l.captcha().SetConfig(cfg)
+}
+
+func (l *TelegramListener) captcha() *captcha {
+	l.captchaOnce.Do(func() {
+		l.captchaH = newCaptcha(l.TbAPI, l.Captcha)
+		l.captchaH.dry = l.Dry
+		l.captchaH.isSuper = func(userName string, userID int64) bool { return l.SuperUsers.IsSuper(userName, userID) }
+		if l.Bot != nil {
+			l.captchaH.isApproved = l.Bot.IsApprovedUser
+		}
+	})
+	return l.captchaH
 }
 
 // GetDMUsers returns the list of recent DM senders
@@ -120,6 +141,10 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 	} else if chatInfo.LinkedChatID != 0 {
 		l.linkedChannelID = chatInfo.LinkedChatID
 		log.Printf("[INFO] linked channel ID: %d", l.linkedChannelID)
+	}
+	l.captcha().setChat(l.chatID, chatInfo.Title)
+	if l.captcha().config().Ready() {
+		log.Printf("[INFO] captcha for new members enabled")
 	}
 
 	if err := l.updateSupers(); err != nil {
@@ -178,7 +203,7 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 
 	u := tbapi.NewUpdate(0)
 	u.Timeout = 60
-	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction"}
+	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction", "chat_join_request"}
 
 	updates := l.TbAPI.GetUpdatesChan(u)
 	log.Printf("[DEBUG] start listening for updates")
@@ -215,6 +240,13 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 			if update.CallbackQuery != nil {
 				callbackData := update.CallbackQuery.Data
 
+				if l.captcha().IsCallback(callbackData) {
+					if err := l.captcha().OnCallback(update.CallbackQuery); err != nil {
+						log.Printf("[WARN] failed to process captcha answer: %v", err)
+					}
+					continue
+				}
+
 				// delegate report callbacks (prefixes R+, R-, R?, R!, RX) to reportsHandler
 				if len(callbackData) >= 3 && callbackData[:1] == "R" {
 					if err := l.reportsHandler.HandleReportCallback(ctx, update.CallbackQuery); err != nil {
@@ -245,6 +277,11 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 				continue
 			}
 
+			if update.ChatJoinRequest != nil {
+				l.captcha().OnJoinRequest(update.ChatJoinRequest)
+				continue
+			}
+
 			if update.MessageReaction != nil {
 				if err := l.procReaction(ctx, update.MessageReaction); err != nil {
 					log.Printf("[WARN] failed to process reaction: %v", err)
@@ -260,6 +297,15 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 				// the join check runs first, so it works whatever the join message cleanup does
 				if err := l.procJoin(ctx, update.Message); err != nil {
 					log.Printf("[WARN] %v", err)
+				}
+				if update.Message.Chat.ID == l.chatID {
+					for i := range update.Message.NewChatMembers {
+						member := update.Message.NewChatMembers[i]
+						if l.BotUsername != "" && strings.EqualFold(member.UserName, l.BotUsername) {
+							continue
+						}
+						l.captcha().OnNewMember(&member)
+					}
 				}
 				// handle join messages with mutually exclusive logic to prevent double-deletion:
 				// - if DeleteJoinMessages=true: delete immediately, don't store in locator
@@ -278,6 +324,9 @@ func (l *TelegramListener) Do(ctx context.Context) error {
 
 			// handle left member messages, i.e. "blah blah removed from the chat"
 			if update.Message.LeftChatMember != nil {
+				if update.Message.Chat.ID == l.chatID {
+					l.captcha().OnLeft(update.Message.LeftChatMember.ID)
+				}
 				if l.SuppressJoinMessage {
 					// delete the stored join message when user leaves
 					err := l.procLeftChatMemberMessage(update)

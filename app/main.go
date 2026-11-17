@@ -192,6 +192,20 @@ type options struct {
 		Window    time.Duration `long:"window" env:"WINDOW" default:"720h" description:"sliding window for counting warns"`
 	} `group:"warn" namespace:"warn" env-namespace:"WARN"`
 
+	Captcha struct {
+		Enabled    bool          `long:"enabled" env:"ENABLED" description:"ask new members a question before they can write"`
+		Question   string        `long:"question" env:"QUESTION" description:"captcha question"`
+		Options    []string      `long:"option" env:"OPTIONS" env-delim:"|" description:"captcha answer, repeat for each (env: separated by |)"`
+		Answer     int           `long:"answer" env:"ANSWER" default:"1" description:"number of the correct answer, starting at 1"`
+		Timeout    time.Duration `long:"timeout" env:"TIMEOUT" default:"3m" description:"time to answer"`
+		FailAction string        `long:"fail-action" env:"FAIL_ACTION" choice:"kick" choice:"ban" choice:"mute" default:"kick" description:"action on a wrong answer or no answer"`
+		Shuffle    bool          `long:"shuffle" env:"SHUFFLE" description:"show the answers in random order"`
+		Intro      string        `long:"intro" env:"INTRO" default:"Welcome {name}! Answer within {seconds} seconds to write in {group}." description:"text above the question, supports {name}, {group}, {seconds}, {minutes}"`
+		PassMsg    string        `long:"pass-msg" env:"PASS_MSG" default:"Correct, welcome!" description:"text after a correct answer"`
+		FailMsg    string        `long:"fail-msg" env:"FAIL_MSG" default:"Wrong answer." description:"text after a wrong answer or timeout"`
+		NotYours   string        `long:"not-yours" env:"NOT_YOURS" default:"This question is for the new member only." description:"popup when someone else presses a captcha button"`
+	} `group:"captcha" namespace:"captcha" env-namespace:"CAPTCHA"`
+
 	Files struct {
 		SamplesDataPath string        `long:"samples" env:"SAMPLES" description:"samples data path, defaults to dynamic data path"`
 		DynamicDataPath string        `long:"dynamic" env:"DYNAMIC" default:"data" description:"dynamic data path"`
@@ -547,6 +561,7 @@ func execute(ctx context.Context, settings *config.Settings, reloadNormalize fun
 		Warnings:                warningsStore,
 		AdmitDocuments:          settings.Meta.DocumentsOnly,
 		AdmitContacts:           settings.Meta.ContactOnly,
+		Captcha:                 captchaConfig(settings.Captcha),
 	}
 
 	if settings.Delete.JoinMessages {
@@ -724,6 +739,16 @@ func activateServer(ctx context.Context, settings *config.Settings, sf *bot.Spam
 	}
 	if settingsStore != nil {
 		cfg.SettingsStore = settingsStore // avoid nil-interface-wrapping-nil-pointer trap
+	}
+	if settings.Transient.ConfigDB && os.Getenv("TGSPAM_IN_DOCKER") == "1" {
+		cfg.Restart = func() {
+			if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+				log.Printf("[WARN] restart failed: %v", err)
+			}
+		}
+	}
+	if cs, ok := dmUsersProvider.(interface{ SetCaptchaConfig(events.CaptchaConfig) }); ok {
+		cfg.SettingsChanged = func(s config.Settings) { cs.SetCaptchaConfig(captchaConfig(s.Captcha)) }
 	}
 	srv := webapi.NewServer(cfg)
 
@@ -1467,4 +1492,11 @@ func setupLog(dbg bool, secrets ...string) {
 	}
 	lgr.SetupStdLogger(logOpts...)
 	lgr.Setup(logOpts...)
+}
+
+// captchaConfig converts the captcha settings to the listener config
+func captchaConfig(c config.CaptchaSettings) events.CaptchaConfig {
+	return events.CaptchaConfig{Enabled: c.Enabled, Question: c.Question, Options: c.Options, Answer: c.Answer,
+		Timeout: c.Timeout, FailAction: c.FailAction, Shuffle: c.Shuffle, Intro: c.Intro, PassMsg: c.PassMsg,
+		FailMsg: c.FailMsg, NotYours: c.NotYours}
 }

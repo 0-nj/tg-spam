@@ -114,6 +114,9 @@ func (s *Server) loadConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	s.AppSettings = settings
 	s.appSettingsMu.Unlock()
+	if s.SettingsChanged != nil {
+		s.SettingsChanged(*settings)
+	}
 
 	if r.Header.Get("HX-Request") == "true" {
 		// return a success message for HTMX with reload
@@ -186,7 +189,11 @@ func (s *Server) updateConfigHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[DEBUG] settings saved successfully")
 	}
+	changed := *s.AppSettings
 	s.appSettingsMu.Unlock()
+	if s.SettingsChanged != nil {
+		s.SettingsChanged(changed)
+	}
 
 	if r.Header.Get("HX-Request") == "true" {
 		// wrap the alert in #update-result so the next outerHTML swap finds the
@@ -575,6 +582,8 @@ func updateSettingsFromForm(settings *config.Settings, r *http.Request) {
 		}
 	}
 
+	updateCaptchaFromForm(settings, r)
+
 	// service-message deletion. These flags are not rendered in the ConfigDB UI
 	// form; gate the writes on form presence so unrelated saves don't wipe them.
 	if _, ok := r.Form["deleteJoinMessages"]; ok {
@@ -700,4 +709,50 @@ func updateSettingsFromForm(settings *config.Settings, r *http.Request) {
 	// from the form because Transient is stripped by the store on save, so any value
 	// posted here would be silently dropped.
 	settings.Dry = r.FormValue("dryModeEnabled") == "on"
+}
+
+// updateCaptchaFromForm applies the captcha section of the settings form. the section posts a hidden
+// captchaForm field, without it the captcha settings are left as they are so unrelated saves keep them.
+// answers come one per line in captchaOptions and replace the list wholesale.
+func updateCaptchaFromForm(settings *config.Settings, r *http.Request) {
+	if _, ok := r.Form["captchaForm"]; !ok {
+		return
+	}
+	settings.Captcha.Enabled = r.FormValue("captchaEnabled") == "on"
+	settings.Captcha.Shuffle = r.FormValue("captchaShuffle") == "on"
+	settings.Captcha.Question = strings.TrimSpace(r.FormValue("captchaQuestion"))
+	var options []string
+	for line := range strings.SplitSeq(r.FormValue("captchaOptions"), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			options = append(options, line)
+		}
+	}
+	settings.Captcha.Options = options
+	if n, err := strconv.Atoi(r.FormValue("captchaAnswer")); err == nil {
+		settings.Captcha.Answer = n
+	}
+	if d, err := time.ParseDuration(r.FormValue("captchaTimeout")); err == nil {
+		settings.Captcha.Timeout = d
+	}
+	if v := r.FormValue("captchaFailAction"); v != "" {
+		settings.Captcha.FailAction = v
+	}
+	settings.Captcha.Intro = strings.TrimSpace(r.FormValue("captchaIntro"))
+	settings.Captcha.PassMsg = strings.TrimSpace(r.FormValue("captchaPassMsg"))
+	settings.Captcha.FailMsg = strings.TrimSpace(r.FormValue("captchaFailMsg"))
+	settings.Captcha.NotYours = strings.TrimSpace(r.FormValue("captchaNotYours"))
+}
+
+// restartHandler handles POST /config/restart. it answers first and stops the app a moment later,
+// so the response reaches the browser before the server goes down.
+func (s *Server) restartHandler(w http.ResponseWriter, _ *http.Request) {
+	log.Printf("[INFO] restart requested from the web UI")
+	if _, err := w.Write([]byte(`<div id="restart-result" class="alert alert-success">` +
+		`Restarting… the page will be back in a few seconds.</div>`)); err != nil {
+		log.Printf("[ERROR] failed to write response: %v", err)
+	}
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		s.Restart()
+	}()
 }

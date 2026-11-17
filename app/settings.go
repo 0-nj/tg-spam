@@ -145,6 +145,20 @@ func optToSettings(opts options) *config.Settings {
 			Window:    opts.Warn.Window,
 		},
 
+		Captcha: config.CaptchaSettings{
+			Enabled:    opts.Captcha.Enabled,
+			Question:   opts.Captcha.Question,
+			Options:    opts.Captcha.Options,
+			Answer:     opts.Captcha.Answer,
+			Timeout:    opts.Captcha.Timeout,
+			FailAction: opts.Captcha.FailAction,
+			Shuffle:    opts.Captcha.Shuffle,
+			Intro:      opts.Captcha.Intro,
+			PassMsg:    opts.Captcha.PassMsg,
+			FailMsg:    opts.Captcha.FailMsg,
+			NotYours:   opts.Captcha.NotYours,
+		},
+
 		LuaPlugins: config.LuaPluginsSettings{
 			Enabled:        opts.LuaPlugins.Enabled,
 			PluginsDir:     opts.LuaPlugins.PluginsDir,

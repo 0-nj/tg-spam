@@ -7,19 +7,21 @@
 <body>
 {{template "navbar.html"}}
 
-<div class="container mt-4">
-    <h2>Manage Samples</h2>
+<div class="container page">
+    <header class="page-head">
+        <h2 class="page-title">Manage Samples</h2>
+    </header>
 
     <!-- Forms for Adding New Samples -->
     <div class="row mb-4">
         <div class="col-md-6 mb-3">
-            <form hx-post="/update/spam" hx-target="#samples-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
+            <form hx-post="/update/spam" hx-target="#samples-list" hx-swap="innerHTML" hx-on::after-request="this.reset()" class="card panel compose">
                 <textarea name="msg" class="form-control mb-2" placeholder="Enter spam sample"></textarea>
                 <button type="submit" class="btn btn-danger">Add Spam</button>
             </form>
         </div>
         <div class="col-md-6">
-            <form hx-post="/update/ham" hx-target="#samples-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
+            <form hx-post="/update/ham" hx-target="#samples-list" hx-swap="innerHTML" hx-on::after-request="this.reset()" class="card panel compose">
                 <textarea name="msg" class="form-control mb-2" placeholder="Enter ham sample"></textarea>
                 <button type="submit" class="btn btn-success">Add Ham</button>
             </form>
@@ -38,11 +40,11 @@
 {{define "samples_list"}}
     <div class="row" id="samples-list">
         <div class="col-md-6">
-            <h4>
+            <h4 class="list-head">
                 Spam Samples ({{.TotalSpamSamples}})
                 <a href="/download/spam" class="btn btn-custom-blue btn-sm">Download</a>
             </h4>
-            <ul class="list-group" id="spam-samples-list">
+            <ul class="list-group mb-4" id="spam-samples-list">
                 {{range .SpamSamples}}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span id="loading-{{.ID}}">{{.Sample}} <img class="htmx-indicator" src="/spinner.svg"/></span>
@@ -60,11 +62,11 @@
         </div>
 
         <div class="col-md-6">
-            <h4>
+            <h4 class="list-head">
                 Ham Samples ({{.TotalHamSamples}})
                 <a href="/download/ham" class="btn btn-custom-blue btn-sm">Download</a>
             </h4>
-            <ul class="list-group" id="ham-samples-list">
+            <ul class="list-group mb-4" id="ham-samples-list">
                 {{range .HamSamples}}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{.Sample}}

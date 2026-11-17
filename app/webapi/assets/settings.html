@@ -8,49 +8,54 @@
 
 {{template "navbar.html"}}
 
-<div class="container mt-4">
-    <h2 class="text-center mb-4">Application Settings</h2>
+<div class="container page">
+    <header class="page-head">
+        <h2 class="page-title">Application Settings</h2>
+    </header>
 
     <div class="row mb-4">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header" style="background-color: #7c8994; color: white;">
+        <div class="col-md-8 mb-3 mb-md-0">
+            <div class="card panel status-card">
+                <div class="card-header">
                     <h5 class="mb-0">System Status</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <table class="table table-sm">
-                                <thead style="background-color: #e8e8e8; border-bottom: none;">
-                                    <tr><th colspan="2" style="border-bottom: none;">Telegram Bot</th></tr>
+                            <div class="table-responsive">
+                            <table class="table table-sm kv">
+                                <thead class="table-caption">
+                                    <tr><th colspan="2">Telegram Bot</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr><th style="width: 30%">Version</th><td>{{.Version}}</td></tr>
+                                    <tr><th>Version</th><td>{{.Version}}</td></tr>
                                     <tr><th>Uptime</th><td>{{.System.Uptime}}</td></tr>
                                     <tr><th>Instance ID</th><td>{{.InstanceID}}</td></tr>
                                     <tr><th>Primary Group</th><td>{{.Telegram.Group}}</td></tr>
                                     <tr><th>Admin Group</th><td>{{.Admin.AdminGroup}}</td></tr>
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <table class="table table-sm">
-                                <thead style="background-color: #e8e8e8; border-bottom: none;">
-                                    <tr><th colspan="2" style="border-bottom: none;">Database</th></tr>
+                            <div class="table-responsive">
+                            <table class="table table-sm kv">
+                                <thead class="table-caption">
+                                    <tr><th colspan="2">Database</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr><th style="width: 30%">Type</th><td>{{.Database.Type}}</td></tr>
+                                    <tr><th>Type</th><td>{{.Database.Type}}</td></tr>
                                     <tr><th>Group ID</th><td>{{.Database.GID}}</td></tr>
                                     <tr><th>Status</th><td>
                                         {{if eq .Database.Status "Connected"}}
-                                            <span class="badge" style="background-color: #28a745;">{{.Database.Status}}</span>
+                                            <span class="badge badge-ok">{{.Database.Status}}</span>
                                         {{else}}
-                                            <span class="badge" style="background-color: #e74c3c;">{{.Database.Status}}</span>
+                                            <span class="badge badge-bad">{{.Database.Status}}</span>
                                         {{end}}
                                     </td></tr>
                                     {{if .ConfigDBMode}}
                                     <tr><th>Config Mode</th><td>
-                                        <span class="badge" style="background-color: #28a745;">Database</span>
+                                        <span class="badge badge-ok">Database</span>
                                     </td></tr>
                                     {{if not .LastUpdated.IsZero}}
                                     <tr><th>Config Updated</th><td>{{.LastUpdated.Format "2006-01-02 15:04:05"}}</td></tr>
@@ -58,6 +63,7 @@
                                     {{end}}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -65,8 +71,8 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header" style="background-color: #7c8994; color: white;">
+            <div class="card panel status-card h-100">
+                <div class="card-header">
                     <h5 class="mb-0">Backup</h5>
                 </div>
                 <div class="card-body">
@@ -97,7 +103,7 @@
     {{if .ConfigDBMode}}
     <div class="alert alert-warning py-2 mb-3 small">
         <i class="bi bi-exclamation-triangle me-1"></i>
-        Saved settings are persisted to the database. The web auth hash is re-read on every request, so it rotates immediately. Everything else, detector and spam bot settings as well as the Telegram, OpenAI and Gemini tokens, is applied to clients built once at startup and needs a restart; <code>/config/reload</code> refreshes the stored settings but does not rebuild those clients.
+        Saved settings are persisted to the database. The web auth hash is re-read on every request, so it rotates immediately. Everything else, detector and spam bot settings as well as the Telegram, OpenAI and Gemini tokens, is applied to clients built once at startup and needs a restart (<strong>Restart Bot</strong> below, when available); <code>/config/reload</code> refreshes the stored settings but does not rebuild those clients. Captcha changes apply right away.
     </div>
     {{end}}
 
@@ -148,13 +154,18 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="captcha-tab" data-bs-toggle="tab" data-bs-target="#captcha-settings" type="button" role="tab">
+                    <i class="bi bi-patch-question me-1"></i>Captcha
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab">
                     <i class="bi bi-tools me-1"></i>System
                 </button>
             </li>
         </ul>
 
-    <div class="tab-content p-3 border border-top-0 rounded-bottom mb-4 bg-light" id="settingsTabsContent">
+    <div class="tab-content settings-panel mb-4" id="settingsTabsContent">
         <!-- Spam Detection Settings -->
         <div class="tab-pane fade show active" id="spam-detection" role="tabpanel">
             {{if .ConfigDBMode}}
@@ -179,8 +190,8 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="minSpamProbability" class="form-label">Min Spam Probability (%)</label>
-                    <input type="number" step="1" min="0" max="100" class="form-control" id="minSpamProbability" name="minSpamProbability" value="{{.MinSpamProbability}}">
-                    <div class="form-text">Minimum probability to consider message as spam (0-100%)</div>
+                    <input type="number" step="1" min="0" max="101" class="form-control" id="minSpamProbability" name="minSpamProbability" value="{{.MinSpamProbability}}">
+                    <div class="form-text">Minimum probability to consider message as spam (0-100%, 101 turns the classifier verdict off)</div>
                 </div>
             </div>
 
@@ -276,7 +287,7 @@
                         <tr><th colspan="2">Spam Detection Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Similarity Threshold</th><td>{{.SimilarityThreshold}}</td></tr>
+                        <tr><th>Similarity Threshold</th><td>{{.SimilarityThreshold}}</td></tr>
                         <tr><th>Min Message Length</th><td>{{.MinMsgLen}}</td></tr>
                         <tr><th>Max Short Msgs (Unapproved)</th><td>{{if eq .MaxShortMsgCount 0}}disabled{{else}}{{.MaxShortMsgCount}}{{end}}</td></tr>
                         <tr><th>Max Emoji</th><td>{{.MaxEmoji}}</td></tr>
@@ -382,7 +393,7 @@
                         <tr><th colspan="2">Meta Checks Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Meta Enabled</th><td>{{.IsMetaEnabled}}</td></tr>
+                        <tr><th>Meta Enabled</th><td>{{.IsMetaEnabled}}</td></tr>
                         <tr><th>Meta Links Limit</th><td>{{if eq .Meta.LinksLimit -1}}disabled{{else}}{{.Meta.LinksLimit}}{{end}}</td></tr>
                         <tr><th>Meta Mentions Limit</th><td>{{if eq .Meta.MentionsLimit -1}}disabled{{else}}{{.Meta.MentionsLimit}}{{end}}</td></tr>
                         <tr><th>Meta Links Only</th><td>{{.Meta.LinksOnly}}</td></tr>
@@ -449,7 +460,7 @@
                         <tr><th colspan="2">OpenAI Integration Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">OpenAI Enabled</th><td>{{.IsOpenAIEnabled}}</td></tr>
+                        <tr><th>OpenAI Enabled</th><td>{{.IsOpenAIEnabled}}</td></tr>
                         <tr><th>OpenAI Veto</th><td>{{.OpenAI.Veto}}</td></tr>
                         <tr><th>OpenAI History Size</th><td>{{.OpenAI.HistorySize}}</td></tr>
                         <tr><th>OpenAI Model</th><td>{{.OpenAI.Model}}</td></tr>
@@ -504,7 +515,7 @@
                         <tr><th colspan="2">Gemini Integration Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Gemini Enabled</th><td>{{.GeminiEnabled}}</td></tr>
+                        <tr><th>Gemini Enabled</th><td>{{.GeminiEnabled}}</td></tr>
                         <tr><th>Gemini Veto</th><td>{{.Gemini.Veto}}</td></tr>
                         <tr><th>Gemini History Size</th><td>{{.Gemini.HistorySize}}</td></tr>
                         <tr><th>Gemini Model</th><td>{{.Gemini.Model}}</td></tr>
@@ -603,7 +614,7 @@
                         <tr><th colspan="2">Jev Integration Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Jev Enabled</th><td>{{.JevEnabled}}</td></tr>
+                        <tr><th>Jev Enabled</th><td>{{.JevEnabled}}</td></tr>
                         <tr><th>Jev Veto</th><td>{{.Jev.Veto}}</td></tr>
                         <tr><th>Jev History Size</th><td>{{.Jev.HistorySize}}</td></tr>
                         <tr><th>Jev Model</th><td>{{.Jev.Model}}</td></tr>
@@ -667,7 +678,7 @@
                         <tr><th colspan="2">Lua Plugins Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Lua Plugins Enabled</th><td>{{.LuaPlugins.Enabled}}</td></tr>
+                        <tr><th>Lua Plugins Enabled</th><td>{{.LuaPlugins.Enabled}}</td></tr>
                         <tr><th>Plugins Directory</th><td>{{if eq .LuaPlugins.PluginsDir ""}}Not set{{else}}{{.LuaPlugins.PluginsDir}}{{end}}</td></tr>
                         <tr><th>Dynamic Reload</th><td>{{.LuaPlugins.DynamicReload}}</td></tr>
                         <tr><th>Enabled Plugins</th><td>
@@ -732,7 +743,7 @@
                         <tr><th colspan="2">Data Storage Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Samples Data Path</th><td>{{.Files.SamplesDataPath}}</td></tr>
+                        <tr><th>Samples Data Path</th><td>{{.Files.SamplesDataPath}}</td></tr>
                         <tr><th>Dynamic Data Path</th><td>{{.Files.DynamicDataPath}}</td></tr>
                         <tr><th>Watch Interval Seconds</th><td>{{.Files.WatchInterval}}</td></tr>
                         <!-- StorageTimeout shown as CLI-only setting -->
@@ -780,7 +791,7 @@
                 </div>
             </div>
 
-            <h6 class="mt-3 mb-2">Warn Auto-Ban</h6>
+            <h6 class="settings-subhead">Warn Auto-Ban</h6>
             <div class="row mb-3">
                 <div class="col-md-6 mb-3">
                     <label for="warnThreshold" class="form-label">Warn Threshold</label>
@@ -800,7 +811,7 @@
                         <tr><th colspan="2">Bot Behavior Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Super Users</th><td>{{range .Admin.SuperUsers}}{{.}}<br>{{end}}</td></tr>
+                        <tr><th>Super Users</th><td>{{range .Admin.SuperUsers}}{{.}}<br>{{end}}</td></tr>
                         <tr><th>Disable Admin Spam Forward</th><td>{{.Admin.DisableAdminSpamForward}}</td></tr>
                         <tr><th>No Links in Admin Reports</th><td>{{.Admin.NoLinks}}</td></tr>
                         <tr><th>No Spam Reply</th><td>{{.NoSpamReply}}</td></tr>
@@ -821,7 +832,7 @@
                     <i class="bi bi-info-circle me-1"></i>Don't know your ID? Message the bot!
                 </button>
                 <div class="collapse mt-2" id="dm-users-panel">
-                    <div class="card card-body">
+                    <div class="card panel card-body">
                         <p class="mb-2"><strong>How to find your Telegram User ID:</strong></p>
                         <ol class="mb-3">
                             <li>Open a chat with the bot: {{if .BotUsername}}<a href="https://t.me/{{.BotUsername}}" target="_blank">t.me/{{.BotUsername}}</a>{{else}}find the bot in Telegram{{end}}</li>
@@ -860,6 +871,92 @@
             </script>
         </div>
 
+        <!-- New Member Captcha -->
+        <div class="tab-pane fade" id="captcha-settings" role="tabpanel">
+            {{if .ConfigDBMode}}
+            <input type="hidden" name="captchaForm" value="1">
+            <div class="alert alert-info py-2 mb-3 small">
+                <i class="bi bi-info-circle me-1"></i>
+                New members are muted and get the question with one button per answer: in a private chat when the bot can write to them, otherwise in the group, where only they can answer. The question is removed after the answer or the time limit. Changes here apply right after saving, no restart needed.
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="captchaEnabled" name="captchaEnabled" {{if .Captcha.Enabled}}checked{{end}}>
+                        <label class="form-check-label" for="captchaEnabled">Captcha Enabled</label>
+                    </div>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="captchaShuffle" name="captchaShuffle" {{if .Captcha.Shuffle}}checked{{end}}>
+                        <label class="form-check-label" for="captchaShuffle">Shuffle Answers</label>
+                        <div class="form-text">Show the answers in a different order to each member.</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="captchaTimeout" class="form-label">Time to Answer</label>
+                    <input type="text" class="form-control" id="captchaTimeout" name="captchaTimeout" value="{{.Captcha.Timeout}}">
+                    <div class="form-text">e.g. 3m, 90s (30s to 1h)</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="captchaFailAction" class="form-label">Wrong or No Answer</label>
+                    <select class="form-select" id="captchaFailAction" name="captchaFailAction">
+                        <option value="kick" {{if eq .Captcha.FailAction "kick"}}selected{{end}}>Kick (can rejoin)</option>
+                        <option value="ban" {{if eq .Captcha.FailAction "ban"}}selected{{end}}>Ban</option>
+                        <option value="mute" {{if eq .Captcha.FailAction "mute"}}selected{{end}}>Keep muted</option>
+                    </select>
+                </div>
+            </div>
+            <h6 class="settings-subhead">Question</h6>
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <label for="captchaQuestion" class="form-label">Question</label>
+                    <input type="text" class="form-control" id="captchaQuestion" name="captchaQuestion" dir="auto" value="{{.Captcha.Question}}">
+                    <label for="captchaAnswer" class="form-label mt-3">Correct Answer Number</label>
+                    <input type="number" min="1" max="8" class="form-control" id="captchaAnswer" name="captchaAnswer" value="{{.Captcha.Answer}}">
+                    <div class="form-text">Line number of the right answer in the list, starting at 1.</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="captchaOptions" class="form-label">Answers (one per line)</label>
+                    <textarea class="form-control" id="captchaOptions" name="captchaOptions" rows="5" dir="auto">{{range .Captcha.Options}}{{.}}
+{{end}}</textarea>
+                    <div class="form-text">2 to 8 answers, each becomes a button.</div>
+                </div>
+            </div>
+            <h6 class="settings-subhead">Texts</h6>
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <label for="captchaIntro" class="form-label">Greeting Above the Question</label>
+                    <textarea class="form-control" id="captchaIntro" name="captchaIntro" rows="3" dir="auto">{{.Captcha.Intro}}</textarea>
+                    <div class="form-text">Placeholders: <code>{name}</code> (mention), <code>{group}</code>, <code>{seconds}</code>, <code>{minutes}</code>.</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="captchaPassMsg" class="form-label">After a Correct Answer</label>
+                    <input type="text" class="form-control" id="captchaPassMsg" name="captchaPassMsg" dir="auto" value="{{.Captcha.PassMsg}}">
+                    <label for="captchaFailMsg" class="form-label mt-3">After a Wrong Answer or Timeout</label>
+                    <input type="text" class="form-control" id="captchaFailMsg" name="captchaFailMsg" dir="auto" value="{{.Captcha.FailMsg}}">
+                    <label for="captchaNotYours" class="form-label mt-3">Popup for Other Members</label>
+                    <input type="text" class="form-control" id="captchaNotYours" name="captchaNotYours" dir="auto" value="{{.Captcha.NotYours}}">
+                </div>
+            </div>
+            {{else}}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="custom-table-header">
+                        <tr><th colspan="2">Captcha Settings</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><th>Captcha Enabled</th><td>{{.Captcha.Enabled}}</td></tr>
+                        <tr><th>Question</th><td dir="auto">{{.Captcha.Question}}</td></tr>
+                        <tr><th>Answers</th><td dir="auto">{{range $i, $o := .Captcha.Options}}{{if $i}} · {{end}}{{$o}}{{end}}</td></tr>
+                        <tr><th>Correct Answer Number</th><td>{{.Captcha.Answer}}</td></tr>
+                        <tr><th>Time to Answer</th><td>{{.Captcha.Timeout}}</td></tr>
+                        <tr><th>Wrong or No Answer</th><td>{{.Captcha.FailAction}}</td></tr>
+                        <tr><th>Shuffle Answers</th><td>{{.Captcha.Shuffle}}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            {{end}}
+        </div>
+
         <!-- System Settings -->
         <div class="tab-pane fade" id="system" role="tabpanel">
             {{if .ConfigDBMode}}
@@ -890,7 +987,7 @@
                         <tr><th colspan="2">System Settings</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th style="width: 30%">Logger Enabled</th><td>{{.Logger.Enabled}}</td></tr>
+                        <tr><th>Logger Enabled</th><td>{{.Logger.Enabled}}</td></tr>
                         <tr><th>Debug Mode Enabled</th><td>{{.Transient.Dbg}}</td></tr>
                         <tr><th>Dry Mode Enabled</th><td>{{.Dry}}</td></tr>
                         <tr><th>TG Debug Mode Enabled</th><td>{{.Transient.TGDbg}}</td></tr>
@@ -903,14 +1000,22 @@
 
     <!-- Submit button for form - only shown in ConfigDBMode -->
     {{if .ConfigDBMode}}
-    <div class="container mb-5 mt-4">
-        <div class="d-flex justify-content-between">
+    <div class="settings-actions">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
             <button type="submit" class="btn btn-primary btn-lg">
                 <i class="bi bi-check-lg me-1"></i> Save Changes
             </button>
-            <button type="reset" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Form
-            </button>
+            <div class="d-flex flex-wrap gap-2">
+                {{if .CanRestart}}
+                <button type="button" class="btn btn-outline-secondary" hx-post="/config/restart" hx-target="#update-result"
+                        hx-confirm="Restart the bot now? Saved settings will be applied.">
+                    <i class="bi bi-arrow-repeat me-1"></i> Restart Bot
+                </button>
+                {{end}}
+                <button type="reset" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Form
+                </button>
+            </div>
         </div>
         <div id="update-result" class="mt-3"></div>
     </div>
@@ -927,7 +1032,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add handler for form submission
         const form = document.getElementById('settings-form');
         if (form) {
-            form.addEventListener('htmx:beforeRequest', function() {
+            form.addEventListener('htmx:beforeRequest', function(evt) {
+                if (evt.detail.elt !== form) return;
                 const resultArea = document.getElementById('update-result');
                 resultArea.innerHTML = '<div class="text-center"><img src="/spinner.svg" width="30" alt="Loading..."></div>';
             });

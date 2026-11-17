@@ -2152,6 +2152,7 @@ func TestTemplateRendering(t *testing.T) {
 				BotUsername     string
 				GeminiEnabled   bool
 				JevEnabled      bool
+				CanRestart      bool
 			}{
 				Settings: &config.Settings{
 					InstanceID:          "test-instance",

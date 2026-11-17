@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/umputun/tg-spam/app/storage"
@@ -40,6 +41,7 @@ type Settings struct {
 	Reactions     ReactionsSettings     `json:"reactions" yaml:"reactions" db:"reactions"`
 	Report        ReportSettings        `json:"report" yaml:"report" db:"report"`
 	Warn          WarnSettings          `json:"warn" yaml:"warn" db:"warn"`
+	Captcha       CaptchaSettings       `json:"captcha" yaml:"captcha" db:"captcha"`
 
 	// spam detection settings
 	SimilarityThreshold float64 `json:"similarity_threshold" yaml:"similarity_threshold" db:"similarity_threshold"`
@@ -214,6 +216,21 @@ type ReportSettings struct {
 	RatePeriod       time.Duration `json:"rate_period" yaml:"rate_period" db:"report_rate_period"`
 }
 
+// CaptchaSettings contains the question asked to new members before they can write
+type CaptchaSettings struct {
+	Enabled    bool          `json:"enabled" yaml:"enabled" db:"captcha_enabled"`
+	Question   string        `json:"question" yaml:"question" db:"captcha_question"`
+	Options    []string      `json:"options" yaml:"options" db:"captcha_options"`
+	Answer     int           `json:"answer" yaml:"answer" db:"captcha_answer"`
+	Timeout    time.Duration `json:"timeout" yaml:"timeout" db:"captcha_timeout"`
+	FailAction string        `json:"fail_action" yaml:"fail_action" db:"captcha_fail_action"`
+	Shuffle    bool          `json:"shuffle" yaml:"shuffle" db:"captcha_shuffle"`
+	Intro      string        `json:"intro" yaml:"intro" db:"captcha_intro"`
+	PassMsg    string        `json:"pass_msg" yaml:"pass_msg" db:"captcha_pass_msg"`
+	FailMsg    string        `json:"fail_msg" yaml:"fail_msg" db:"captcha_fail_msg"`
+	NotYours   string        `json:"not_yours" yaml:"not_yours" db:"captcha_not_yours"`
+}
+
 // WarnSettings contains admin /warn auto-ban settings
 type WarnSettings struct {
 	Threshold int           `json:"threshold" yaml:"threshold" db:"warn_threshold"`
@@ -323,6 +340,9 @@ func (s *Settings) Validate() error {
 	if s.Warn.Threshold > 0 && s.Warn.Window > storage.WarningsRetention {
 		return fmt.Errorf("warn.window (%v) exceeds storage retention (%v); older rows are pruned and would not be counted",
 			s.Warn.Window, storage.WarningsRetention)
+	}
+	if err := s.Captcha.validate(); err != nil {
+		return err
 	}
 	if s.MaxShortMsgCount < 0 {
 		return fmt.Errorf("max-short-msg-count (%d) must be >= 0 (0 disables)", s.MaxShortMsgCount)
@@ -526,4 +546,34 @@ func applyDefaultsRecursive(target, template reflect.Value, path string) {
 			targetField.Set(templateField)
 		}
 	}
+}
+
+// validate checks the captcha settings only when the captcha is enabled
+func (c CaptchaSettings) validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Question) == "" {
+		return fmt.Errorf("captcha.question is required when the captcha is enabled")
+	}
+	if len(c.Options) < 2 || len(c.Options) > 8 {
+		return fmt.Errorf("captcha.options needs 2 to 8 answers, got %d", len(c.Options))
+	}
+	for i, o := range c.Options {
+		if strings.TrimSpace(o) == "" {
+			return fmt.Errorf("captcha.options answer %d is empty", i+1)
+		}
+	}
+	if c.Answer < 1 || c.Answer > len(c.Options) {
+		return fmt.Errorf("captcha.answer (%d) must point to one of the %d answers", c.Answer, len(c.Options))
+	}
+	if c.Timeout < 30*time.Second || c.Timeout > time.Hour {
+		return fmt.Errorf("captcha.timeout (%v) must be between 30s and 1h", c.Timeout)
+	}
+	switch c.FailAction {
+	case "kick", "ban", "mute":
+	default:
+		return fmt.Errorf("captcha.fail-action %q must be kick, ban or mute", c.FailAction)
+	}
+	return nil
 }

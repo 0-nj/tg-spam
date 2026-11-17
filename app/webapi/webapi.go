@@ -89,6 +89,12 @@ type Config struct {
 	// handler keeps the in-memory values of fields listed in
 	// Transient.CredentialsFromCLI and takes the rest from the DB.
 	ReloadNormalize func(*config.Settings)
+	// SettingsChanged, when non-nil, gets a copy of the settings after every
+	// successful update or reload, for parts that apply changes while running.
+	SettingsChanged func(config.Settings)
+	// Restart, when non-nil, stops the app so its supervisor (docker restart policy) starts it again
+	// with the saved settings. exposed as POST /config/restart in database config mode.
+	Restart func()
 }
 
 // Detector is a spam detector interface.
@@ -319,6 +325,9 @@ func (s *Server) routes(router *routegroup.Bundle) *routegroup.Bundle {
 				cfgRouter.HandleFunc("POST /config/reload", s.loadConfigHandler)
 				cfgRouter.HandleFunc("PUT /config", s.updateConfigHandler)    // update configuration
 				cfgRouter.HandleFunc("DELETE /config", s.deleteConfigHandler) // delete configuration
+				if s.Restart != nil {
+					cfgRouter.HandleFunc("POST /config/restart", s.restartHandler)
+				}
 			})
 		}
 
@@ -1052,8 +1061,10 @@ func (s *Server) htmlSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		BotUsername     string
 		GeminiEnabled   bool
 		JevEnabled      bool
+		CanRestart      bool
 	}{
 		Settings:            settingsSnapshot,
+		CanRestart:          s.Restart != nil && s.ConfigDBMode && s.SettingsStore != nil,
 		LuaAvailablePlugins: luaPlugins,
 		Version:             s.Version,
 		Database: struct {
